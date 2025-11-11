@@ -1,5 +1,5 @@
 // CONFIG: substitua com sua URL de implantação do Apps Script e token secreto
-const DEPLOY_URL = "REPLACE_WITH_YOUR_WEBAPP_URL";
+const DEPLOY_URL = "https://script.google.com/macros/s/AKfycbygb1wBtCv7WITzdy2pcVZ703PbDAC9o7b4MiUCaabG078vOZot8cfT-wLNdRV8oZzhVA/exec";
 const FRONTEND_TOKEN = "Ingressos2025#A1";
 
 // Tabs
