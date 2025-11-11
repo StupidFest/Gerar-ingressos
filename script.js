@@ -1,6 +1,6 @@
 // CONFIG: substitua com sua URL de implantação do Apps Script e token secreto
 const DEPLOY_URL = "REPLACE_WITH_YOUR_WEBAPP_URL";
-const FRONTEND_TOKEN = "REPLACE_WITH_YOUR_SECRET_TOKEN";
+const FRONTEND_TOKEN = "Ingressos2025#A1";
 
 // Tabs
 document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => {
