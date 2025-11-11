@@ -78,8 +78,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzXb5kbAF0wY3Sg5d2yEAo1vZvS63wEjq6DjzsH_gQKwBsRISdGbmvDX2c75Pum-kxu/exec';
-const TOKEN_SECRET = 'Ingressos2025#A1';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxyBFcsu3YIpJUFkeIVF5dN9DgF2G6eyyUD2JtQUAeUQcOM1179sRb8GZVHQrv-n9ydDg/exec';
 
 const modalGenerate = new bootstrap.Modal(document.getElementById('modalGenerate'));
 const modalScanner = new bootstrap.Modal(document.getElementById('modalScanner'));
@@ -111,33 +110,33 @@ document.getElementById('formTicket').addEventListener('submit', async (ev)=>{
 
   document.getElementById('generateStatus').innerText = "Gerando ingresso...";
 
-  // Gerar PDF com QR code
-  const pdfBase64 = await gerarPdf(nome, valor, tipo);
+  // Gera PDF com QR Code sincronizado
+  const codigo = gerarCodigo();
+  const pdfBase64 = await gerarPdf(nome, valor, tipo, codigo);
 
-  // Envia para Apps Script
-  try{
-    const resp = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        token: TOKEN_SECRET,
-        action: 'generate',
-        name: nome,
-        value: valor,
-        type: tipo,
-        comprovante: comprovanteBase64,
-        pdfBase64: pdfBase64
-      })
-    });
-    const json = await resp.json();
+  // Chama Apps Script via fetch
+  fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      token: 'Ingressos2025#A1',
+      action: 'generate',
+      name: nome,
+      value: valor,
+      type: tipo,
+      comprovante: comprovanteBase64,
+      pdfBase64: pdfBase64,
+      codigo: codigo // envia o mesmo código do QR
+    })
+  }).then(r=>r.json()).then(json=>{
     if(json.ok){
-      document.getElementById('generateStatus').innerHTML = `Ingresso gerado! Código: <strong>${json.codigo}</strong><br><a href="${json.pdfUrl}" target="_blank">Baixar PDF</a>`;
+      document.getElementById('generateStatus').innerHTML = `Ingresso gerado! Código: <strong>${codigo}</strong><br><a href="${json.pdfUrl}" target="_blank">Baixar PDF</a>`;
     } else {
       document.getElementById('generateStatus').innerText = 'Erro: ' + json.error;
     }
-  }catch(err){
-    document.getElementById('generateStatus').innerText = 'Erro na requisição: ' + err.message;
-  }
+  }).catch(err=>{
+    document.getElementById('generateStatus').innerText = 'Erro na requisição: ' + err;
+  });
 });
 
 function toBase64(file){
@@ -149,8 +148,14 @@ function toBase64(file){
   });
 }
 
-async function gerarPdf(nome, valor, tipo){
-  // cria PDF real com jsPDF
+function gerarCodigo(){
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for(let i=0;i<8;i++) code += chars.charAt(Math.floor(Math.random()*chars.length));
+  return code;
+}
+
+async function gerarPdf(nome, valor, tipo, codigo){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   doc.setFontSize(16);
@@ -159,14 +164,14 @@ async function gerarPdf(nome, valor, tipo){
   doc.text(`Valor: ${valor}`, 20, 60);
   doc.text(`Tipo: ${tipo}`, 20, 80);
 
-  // gera QR Code temporário
+  // QR Code com código sincronizado
   const qrDiv = document.createElement('div');
-  const qr = new QRCode(qrDiv, { text: Math.random().toString(36).substring(2,10).toUpperCase(), width: 80, height: 80 });
+  new QRCode(qrDiv, { text: codigo, width: 80, height: 80 });
   await new Promise(r => setTimeout(r, 500));
   const img = qrDiv.querySelector('img');
   if(img) doc.addImage(img, 'PNG', 150, 20, 50, 50);
 
-  return doc.output('datauristring'); // retorna base64 data:application/pdf;base64,...
+  return doc.output('datauristring');
 }
 
 // ---------------- SCANNER ----------------
@@ -192,25 +197,18 @@ function stopScanner(){
   }
 }
 
-async function onScanSuccess(decodedText){
+function onScanSuccess(decodedText){
   stopScanner();
   const resultDiv = document.getElementById('scanResult');
   resultDiv.innerHTML = 'Lendo código: ' + decodedText;
 
-  try{
-    const resp = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        token: TOKEN_SECRET,
-        action: 'validate',
-        codigo: decodedText,
-        validator: "Douglas"
-      })
-    });
-    const json = await resp.json();
+  fetch(APPS_SCRIPT_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ token:'Ingressos2025#A1', action:'validate', codigo:decodedText, validator:'Douglas' })
+  }).then(r=>r.json()).then(json=>{
     if(json.ok){
-      if(json.status === "USADO"){
+      if(json.status==='USADO'){
         resultDiv.innerHTML = `<div class="text-danger">Ingresso já utilizado</div>`;
       } else {
         resultDiv.innerHTML = `<div><strong>Nome:</strong> ${json.nome}</div>
@@ -221,9 +219,9 @@ async function onScanSuccess(decodedText){
     } else {
       resultDiv.innerHTML = `<div class="text-danger">Erro: ${json.message || json.error}</div>`;
     }
-  }catch(err){
+  }).catch(err=>{
     resultDiv.innerHTML = 'Erro na verificação: ' + err;
-  }
+  });
 }
 </script>
 
